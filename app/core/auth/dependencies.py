@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+import secrets
 
 from fastapi import Request, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.clients.usage import UsageFetchError, fetch_usage
+from app.core.config.settings import get_settings
 from app.core.config.settings_cache import get_settings_cache
 from app.core.exceptions import DashboardAuthError, ProxyAuthError, ProxyUpstreamError
 from app.db.session import get_background_session
@@ -16,7 +18,8 @@ from app.modules.dashboard_auth.service import DASHBOARD_SESSION_COOKIE, get_das
 
 logger = logging.getLogger(__name__)
 
-_bearer = HTTPBearer(description="API key (e.g. sk-clb-…)", auto_error=False)
+_proxy_bearer = HTTPBearer(description="API key (e.g. sk-clb-…)", auto_error=False)
+_admin_bearer = HTTPBearer(description="Admin API token", auto_error=False)
 
 
 # --- Error format markers ---
@@ -34,7 +37,7 @@ def set_dashboard_error_format(request: Request) -> None:
 
 
 async def validate_proxy_api_key(
-    credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
+    credentials: HTTPAuthorizationCredentials | None = Security(_proxy_bearer),
 ) -> ApiKeyData | None:
     settings = await get_settings_cache().get()
     if not settings.api_key_auth_enabled:
@@ -75,6 +78,38 @@ async def validate_dashboard_session(request: Request) -> None:
         raise DashboardAuthError("Authentication is required")
     if settings.totp_required_on_login and not state.totp_verified:
         raise DashboardAuthError("TOTP verification is required for dashboard access", code="totp_required")
+
+
+async def validate_dashboard_access(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Security(_admin_bearer),
+) -> None:
+    if credentials is not None:
+        _validate_admin_token(credentials)
+        return
+    await validate_dashboard_session(request)
+
+    settings = await get_settings_cache().get()
+    requires_dashboard_session = settings.password_hash is not None or settings.totp_required_on_login
+    if not requires_dashboard_session and _has_configured_admin_token():
+        raise DashboardAuthError("Admin API token is required", code="admin_token_required")
+
+
+def _validate_admin_token(credentials: HTTPAuthorizationCredentials) -> None:
+    configured = get_settings().admin_api_token
+    if configured is None or not configured.strip():
+        raise DashboardAuthError("Admin API token is not configured", code="admin_token_not_configured")
+
+    presented = credentials.credentials.strip()
+    if not presented or not secrets.compare_digest(presented, configured):
+        raise DashboardAuthError("Invalid admin API token", code="invalid_admin_token")
+
+
+def _has_configured_admin_token() -> bool:
+    configured = get_settings().admin_api_token
+    if configured is None:
+        return False
+    return bool(configured.strip())
 
 
 # --- Codex usage caller identity auth ---

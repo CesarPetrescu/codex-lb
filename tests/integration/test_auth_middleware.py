@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import pytest
 
+from app.core.config.settings import get_settings
 from app.core.config.settings_cache import get_settings_cache
 from app.core.crypto import TokenEncryptor
 from app.core.usage.models import UsagePayload
@@ -33,6 +34,15 @@ def _make_account(account_id: str, chatgpt_account_id: str, email: str) -> Accou
         status=AccountStatus.ACTIVE,
         deactivation_reason=None,
     )
+
+
+@pytest.fixture
+def admin_token(monkeypatch: pytest.MonkeyPatch) -> str:
+    token = "admin-token-secret"
+    monkeypatch.setenv("CODEX_LB_ADMIN_API_TOKEN", token)
+    get_settings.cache_clear()
+    yield token
+    get_settings.cache_clear()
 
 
 async def _set_migration_inconsistent_totp_only_mode() -> None:
@@ -80,6 +90,79 @@ async def test_session_branch_allows_without_password_and_blocks_without_session
     assert login.status_code == 200
     allowed = await async_client.get("/api/settings")
     assert allowed.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_admin_token_required_when_public_mode_enabled(async_client, admin_token):
+    blocked = await async_client.get("/api/settings")
+    assert blocked.status_code == 401
+    assert blocked.json()["error"]["code"] == "admin_token_required"
+
+    allowed = await async_client.get(
+        "/api/settings",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert allowed.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_admin_token_allows_dashboard_access_without_session(async_client, admin_token):
+    setup = await async_client.post(
+        "/api/dashboard-auth/password/setup",
+        json={"password": "password123"},
+    )
+    assert setup.status_code == 200
+
+    await async_client.post("/api/dashboard-auth/logout", json={})
+
+    response = await async_client.get(
+        "/api/settings",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_invalid_admin_token_rejected(async_client, admin_token):
+    setup = await async_client.post(
+        "/api/dashboard-auth/password/setup",
+        json={"password": "password123"},
+    )
+    assert setup.status_code == 200
+
+    await async_client.post("/api/dashboard-auth/logout", json={})
+
+    response = await async_client.get(
+        "/api/settings",
+        headers={"Authorization": "Bearer wrong-admin-token"},
+    )
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "invalid_admin_token"
+
+
+@pytest.mark.asyncio
+async def test_admin_token_can_manage_api_keys_without_session(async_client, admin_token):
+    setup = await async_client.post(
+        "/api/dashboard-auth/password/setup",
+        json={"password": "password123"},
+    )
+    assert setup.status_code == 200
+
+    await async_client.post("/api/dashboard-auth/logout", json={})
+
+    create = await async_client.post(
+        "/api/api-keys/",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"name": "ops-key"},
+    )
+    assert create.status_code == 200
+
+    listed = await async_client.get(
+        "/api/api-keys/",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert listed.status_code == 200
+    assert len(listed.json()) == 1
 
 
 @pytest.mark.asyncio

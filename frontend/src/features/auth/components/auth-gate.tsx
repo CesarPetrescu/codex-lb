@@ -28,8 +28,8 @@ export function AuthGate({ children }: PropsWithChildren) {
     );
   }
 
-  if (passwordRequired && !authenticated) {
-    if (totpRequiredOnLogin) {
+  if (!authenticated) {
+    if (passwordRequired && totpRequiredOnLogin) {
       return <TotpDialog open />;
     }
     return (

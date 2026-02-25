@@ -67,6 +67,7 @@ function ApiKeyEditForm({ apiKey, busy, onSubmit, onClose }: ApiKeyEditFormProps
   const initialLimitRules = useMemo(() => limitsToCreateRules(apiKey), [apiKey]);
   const [limitRules, setLimitRules] = useState<LimitRuleCreate[]>(() => initialLimitRules);
   const [expiresAt, setExpiresAt] = useState<Date | null>(() => parseDate(apiKey.expiresAt));
+  const [resetUsage, setResetUsage] = useState(false);
 
   const handleSubmit = async (values: FormValues) => {
     const normalizedLimits = normalizeLimitRules(limitRules);
@@ -78,6 +79,9 @@ function ApiKeyEditForm({ apiKey, busy, onSubmit, onClose }: ApiKeyEditFormProps
     };
     if (hasLimitRuleChanges(initialLimitRules, limitRules)) {
       payload.limits = normalizedLimits;
+    }
+    if (resetUsage) {
+      payload.resetUsage = true;
     }
     await onSubmit(payload);
     onClose();
@@ -131,6 +135,14 @@ function ApiKeyEditForm({ apiKey, busy, onSubmit, onClose }: ApiKeyEditFormProps
           <div className="max-h-[55vh] space-y-3 overflow-y-auto overscroll-contain pl-1 pr-2 max-sm:mt-3 max-sm:border-t max-sm:pt-3">
             <h4 className="sticky top-0 bg-background pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Limits</h4>
             <LimitRulesEditor rules={limitRules} onChange={setLimitRules} />
+
+            <div className="flex items-center justify-between rounded-md border p-2">
+              <div className="space-y-0.5">
+                <span className="text-sm font-medium">Reset usage on save</span>
+                <p className="text-xs text-muted-foreground">Sets current counters to zero for this key.</p>
+              </div>
+              <Switch checked={resetUsage} onCheckedChange={setResetUsage} />
+            </div>
 
             {apiKey.limits.length > 0 ? (
               <div className="space-y-1">

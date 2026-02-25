@@ -36,9 +36,15 @@ export class ApiError extends Error {
 }
 
 let unauthorizedHandler: (() => void) | null = null;
+let authToken: string | null = null;
 
 export function setUnauthorizedHandler(handler: (() => void) | null): void {
   unauthorizedHandler = handler;
+}
+
+export function setAuthToken(token: string | null): void {
+  const trimmed = token?.trim() ?? "";
+  authToken = trimmed.length > 0 ? trimmed : null;
 }
 
 function isBodyInit(value: unknown): value is BodyInit {
@@ -138,6 +144,9 @@ async function request<T>(
   }
   if (!headers.has("Accept")) {
     headers.set("Accept", JSON_CONTENT_TYPE);
+  }
+  if (authToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${authToken}`);
   }
 
   let response: Response;

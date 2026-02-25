@@ -12,7 +12,7 @@ describe("accounts flow integration", () => {
     window.history.pushState({}, "", "/accounts");
     renderWithProviders(<App />);
 
-    expect(await screen.findByRole("heading", { name: "Accounts" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Accounts" }, { timeout: 10_000 })).toBeInTheDocument();
     expect((await screen.findAllByText("primary@example.com")).length).toBeGreaterThan(0);
     expect(screen.getByText("secondary@example.com")).toBeInTheDocument();
 

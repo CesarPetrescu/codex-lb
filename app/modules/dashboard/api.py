@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from app.core.auth.dependencies import set_dashboard_error_format, validate_dashboard_session
+from app.core.auth.dependencies import set_dashboard_error_format, validate_dashboard_access
 from app.core.openai.model_registry import get_model_registry, is_public_model
 from app.dependencies import DashboardContext, get_dashboard_context
 from app.modules.dashboard.schemas import DashboardOverviewResponse
@@ -10,7 +10,7 @@ from app.modules.dashboard.schemas import DashboardOverviewResponse
 router = APIRouter(
     prefix="/api",
     tags=["dashboard"],
-    dependencies=[Depends(validate_dashboard_session), Depends(set_dashboard_error_format)],
+    dependencies=[Depends(validate_dashboard_access), Depends(set_dashboard_error_format)],
 )
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, UploadFile
 
-from app.core.auth.dependencies import set_dashboard_error_format, validate_dashboard_session
+from app.core.auth.dependencies import set_dashboard_error_format, validate_dashboard_access
 from app.core.exceptions import DashboardBadRequestError, DashboardConflictError, DashboardNotFoundError
 from app.dependencies import AccountsContext, get_accounts_context
 from app.modules.accounts.repository import AccountIdentityConflictError
@@ -19,7 +19,7 @@ from app.modules.accounts.service import InvalidAuthJsonError
 router = APIRouter(
     prefix="/api/accounts",
     tags=["dashboard"],
-    dependencies=[Depends(validate_dashboard_session), Depends(set_dashboard_error_format)],
+    dependencies=[Depends(validate_dashboard_access), Depends(set_dashboard_error_format)],
 )
 
 

@@ -102,6 +102,35 @@ describe("ApiKeyEditDialog", () => {
       },
     ]);
   });
+
+  it("includes resetUsage when reset toggle is enabled", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const apiKey = createApiKey();
+
+    renderWithProviders(
+      <ApiKeyEditDialog
+        open
+        busy={false}
+        apiKey={apiKey}
+        onOpenChange={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    const resetLabel = screen.getByText("Reset usage on save");
+    const resetRow = resetLabel.parentElement?.parentElement;
+    if (!resetRow) throw new Error("Reset usage row not found");
+    await user.click(within(resetRow).getByRole("switch"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    const payload = onSubmit.mock.calls[0][0];
+    expect(payload.resetUsage).toBe(true);
+  });
 });
 
 describe("hasLimitRuleChanges", () => {

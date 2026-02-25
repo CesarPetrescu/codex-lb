@@ -69,6 +69,16 @@ def temp_key_file(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _reset_admin_api_token_env(monkeypatch):
+    monkeypatch.setenv("CODEX_LB_ADMIN_API_TOKEN", "")
+    from app.core.config.settings import get_settings
+
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
 def _reset_model_registry():
     from app.core.openai.model_registry import get_model_registry
 

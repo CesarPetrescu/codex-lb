@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse
 
-from app.core.auth.dependencies import set_dashboard_error_format, validate_dashboard_session
+from app.core.auth.dependencies import set_dashboard_error_format, validate_dashboard_access
 from app.core.clients.oauth import OAuthError
 from app.core.errors import dashboard_error
 from app.dependencies import OauthContext, get_oauth_context
@@ -18,7 +18,7 @@ from app.modules.oauth.schemas import (
 router = APIRouter(
     prefix="/api/oauth",
     tags=["dashboard"],
-    dependencies=[Depends(validate_dashboard_session), Depends(set_dashboard_error_format)],
+    dependencies=[Depends(validate_dashboard_access), Depends(set_dashboard_error_format)],
 )
 
 

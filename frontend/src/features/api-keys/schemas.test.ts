@@ -128,6 +128,15 @@ describe("LimitRuleCreateSchema", () => {
     expect(parsed.maxValue).toBe(1000000);
   });
 
+  it("accepts 5h as a valid limit window", () => {
+    const parsed = LimitRuleCreateSchema.parse({
+      limitType: "total_tokens",
+      limitWindow: "5h",
+      maxValue: 10000,
+    });
+    expect(parsed.limitWindow).toBe("5h");
+  });
+
   it("rejects invalid limit type", () => {
     const result = LimitRuleCreateSchema.safeParse({
       limitType: "invalid",

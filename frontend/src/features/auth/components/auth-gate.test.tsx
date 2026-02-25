@@ -13,6 +13,7 @@ function setAuthState(
     passwordRequired: true,
     authenticated: false,
     totpRequiredOnLogin: false,
+    authMethod: null,
     error: null,
     ...patch,
   });
@@ -81,6 +82,26 @@ describe("AuthGate", () => {
 
     expect(screen.getByText("Two-factor verification")).toBeInTheDocument();
     expect(screen.queryByText("Dashboard Login")).not.toBeInTheDocument();
+    await waitFor(() => expect(refreshSession).toHaveBeenCalledTimes(1));
+  });
+
+  it("shows login form even when password is not required and unauthenticated", async () => {
+    const refreshSession = vi.fn().mockResolvedValue(undefined);
+    setAuthState({
+      refreshSession,
+      passwordRequired: false,
+      authenticated: false,
+      totpRequiredOnLogin: false,
+    });
+
+    render(
+      <AuthGate>
+        <div>Protected content</div>
+      </AuthGate>,
+    );
+
+    expect(screen.getByText("Sign in")).toBeInTheDocument();
+    expect(screen.queryByText("Protected content")).not.toBeInTheDocument();
     await waitFor(() => expect(refreshSession).toHaveBeenCalledTimes(1));
   });
 });

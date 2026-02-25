@@ -25,13 +25,14 @@ describe("api keys flow integration", () => {
     window.history.pushState({}, "", "/settings");
     renderWithProviders(<App />);
 
-    expect(await screen.findByText("API Keys", {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText("API Keys", {}, { timeout: 10_000 })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Create key" }));
-    await user.type(screen.getByLabelText("Name"), createdName);
+    const createDialog = await screen.findByRole("dialog", { name: "Create API key" }, { timeout: 10_000 });
+    await user.type(within(createDialog).getByLabelText("Name"), createdName);
     await user.click(screen.getByRole("button", { name: "Create" }));
 
-    const createdDialog = await screen.findByRole("dialog", { name: "API key created" });
+    const createdDialog = await screen.findByRole("dialog", { name: "API key created" }, { timeout: 10_000 });
     expect(screen.getByText(/sk-test-generated/i)).toBeInTheDocument();
     const closeCandidates = within(createdDialog).getAllByRole("button", {
       name: "Close",
@@ -83,12 +84,13 @@ describe("api keys flow integration", () => {
 
     // Open create dialog and verify limit rules editor in basic mode
     await user.click(screen.getByRole("button", { name: "Create key" }));
+    const createDialog = await screen.findByRole("dialog", { name: "Create API key" }, { timeout: 10_000 });
 
-    const limitsElements = screen.getAllByText("Limits");
+    const limitsElements = within(createDialog).getAllByText("Limits");
     expect(limitsElements.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Weekly token limit")).toBeInTheDocument();
-    expect(screen.getByText("Weekly cost limit ($)")).toBeInTheDocument();
-    expect(screen.getByText("Allowed models")).toBeInTheDocument();
+    expect(within(createDialog).getByText("Weekly token limit")).toBeInTheDocument();
+    expect(within(createDialog).getByText("Weekly cost limit ($)")).toBeInTheDocument();
+    expect(within(createDialog).getByText("Allowed models")).toBeInTheDocument();
   });
 
   it("shows usage bars when editing a key with limits", async () => {

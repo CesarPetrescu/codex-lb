@@ -165,6 +165,7 @@ class LimitType(str, Enum):
 
 
 class LimitWindow(str, Enum):
+    FIVE_HOURS = "5h"
     DAILY = "daily"
     WEEKLY = "weekly"
     MONTHLY = "monthly"

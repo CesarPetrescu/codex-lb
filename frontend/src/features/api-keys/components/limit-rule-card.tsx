@@ -26,6 +26,7 @@ const LIMIT_TYPE_LABELS: Record<LimitType, string> = {
 };
 
 const WINDOW_LABELS: Record<LimitWindowType, string> = {
+  "5h": "5 Hours",
   daily: "Daily",
   weekly: "Weekly",
   monthly: "Monthly",

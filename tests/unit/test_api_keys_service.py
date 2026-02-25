@@ -473,6 +473,35 @@ async def test_validate_key_advances_reset_strictly_into_future(monkeypatch: pyt
 
 
 @pytest.mark.asyncio
+async def test_validate_key_lazy_resets_five_hour_window(monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _FakeApiKeysRepository()
+    service = ApiKeysService(repo)
+    created = await service.create_key(
+        ApiKeyCreateData(
+            name="five-hour-reset-key",
+            allowed_models=None,
+            expires_at=None,
+            limits=[
+                LimitRuleInput(limit_type="total_tokens", limit_window="5h", max_value=100),
+            ],
+        )
+    )
+
+    fixed_now = utcnow()
+    monkeypatch.setattr("app.modules.api_keys.service.utcnow", lambda: fixed_now)
+
+    limits = await repo.get_limits_by_key(created.id)
+    limits[0].current_value = 80
+    limits[0].reset_at = fixed_now - timedelta(hours=15)
+
+    await service.validate_key(created.key)
+
+    updated_limits = await repo.get_limits_by_key(created.id)
+    assert updated_limits[0].current_value == 0
+    assert updated_limits[0].reset_at == fixed_now + timedelta(hours=5)
+
+
+@pytest.mark.asyncio
 async def test_validate_key_multi_limit_all_must_pass() -> None:
     repo = _FakeApiKeysRepository()
     service = ApiKeysService(repo)

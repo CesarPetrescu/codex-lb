@@ -4,7 +4,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 
-from app.core.auth.dependencies import set_dashboard_error_format, validate_dashboard_session
+from app.core.auth.dependencies import set_dashboard_error_format, validate_dashboard_access
 from app.dependencies import RequestLogsContext, get_request_logs_context
 from app.modules.request_logs.schemas import (
     RequestLogFilterOptionsResponse,
@@ -16,7 +16,7 @@ from app.modules.request_logs.service import RequestLogModelOption as ServiceReq
 router = APIRouter(
     prefix="/api/request-logs",
     tags=["dashboard"],
-    dependencies=[Depends(validate_dashboard_session), Depends(set_dashboard_error_format)],
+    dependencies=[Depends(validate_dashboard_access), Depends(set_dashboard_error_format)],
 )
 
 _MODEL_OPTION_DELIMITER = ":::"

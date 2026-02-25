@@ -194,6 +194,38 @@ async def test_api_keys_update_limits(async_client):
 
 
 @pytest.mark.asyncio
+async def test_api_keys_accept_five_hour_limit_window(async_client):
+    create = await async_client.post(
+        "/api/api-keys/",
+        json={
+            "name": "five-hour-limit-key",
+            "limits": [
+                {"limitType": "total_tokens", "limitWindow": "5h", "maxValue": 2000},
+            ],
+        },
+    )
+    assert create.status_code == 200
+    payload = create.json()
+    key_id = payload["id"]
+    assert len(payload["limits"]) == 1
+    assert payload["limits"][0]["limitWindow"] == "5h"
+
+    updated = await async_client.patch(
+        f"/api/api-keys/{key_id}",
+        json={
+            "limits": [
+                {"limitType": "cost_usd", "limitWindow": "5h", "maxValue": 2_500_000},
+            ],
+        },
+    )
+    assert updated.status_code == 200
+    updated_payload = updated.json()
+    assert len(updated_payload["limits"]) == 1
+    assert updated_payload["limits"][0]["limitWindow"] == "5h"
+    assert updated_payload["limits"][0]["limitType"] == "cost_usd"
+
+
+@pytest.mark.asyncio
 async def test_api_key_model_restriction_and_models_filter(async_client):
     _populate_test_registry()
     model_ids = sorted(_TEST_MODELS)

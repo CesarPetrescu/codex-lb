@@ -1,9 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { setAuthTokenMock, setUnauthorizedHandlerMock } = vi.hoisted(() => ({
+  setAuthTokenMock: vi.fn(),
+  setUnauthorizedHandlerMock: vi.fn(),
+}));
+
+vi.mock("@/lib/api-client", () => ({
+  setAuthToken: setAuthTokenMock,
+  setUnauthorizedHandler: setUnauthorizedHandlerMock,
+}));
+
 import {
   getAuthSession,
   loginPassword,
   logout as logoutRequest,
+  validateAdminToken,
   verifyTotp as verifyTotpRequest,
 } from "@/features/auth/api";
 import { useAuthStore } from "@/features/auth/hooks/use-auth";
@@ -13,6 +24,7 @@ vi.mock("@/features/auth/api", () => ({
   getAuthSession: vi.fn(),
   loginPassword: vi.fn(),
   logout: vi.fn(),
+  validateAdminToken: vi.fn(),
   verifyTotp: vi.fn(),
 }));
 
@@ -29,6 +41,7 @@ function resetAuthStore(): void {
     authenticated: false,
     totpRequiredOnLogin: false,
     totpConfigured: false,
+    authMethod: null,
     loading: false,
     initialized: false,
     error: null,
@@ -38,6 +51,7 @@ function resetAuthStore(): void {
 describe("useAuthStore actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
     resetAuthStore();
   });
 
@@ -55,6 +69,38 @@ describe("useAuthStore actions", () => {
     expect(next.authenticated).toBe(false);
     expect(next.totpRequiredOnLogin).toBe(true);
     expect(next.loading).toBe(false);
+    expect(next.authMethod).toBeNull();
+  });
+
+  it("refreshSession requires explicit login when password auth is disabled", async () => {
+    vi.mocked(getAuthSession).mockResolvedValue({
+      authenticated: true,
+      passwordRequired: false,
+      totpRequiredOnLogin: false,
+      totpConfigured: false,
+    });
+
+    await useAuthStore.getState().refreshSession();
+
+    const next = useAuthStore.getState();
+    expect(next.authenticated).toBe(false);
+    expect(next.passwordRequired).toBe(false);
+    expect(next.authMethod).toBeNull();
+  });
+
+  it("refreshSession keeps authenticated password session", async () => {
+    vi.mocked(getAuthSession).mockResolvedValue({
+      authenticated: true,
+      passwordRequired: true,
+      totpRequiredOnLogin: false,
+      totpConfigured: true,
+    });
+
+    await useAuthStore.getState().refreshSession();
+
+    const next = useAuthStore.getState();
+    expect(next.authenticated).toBe(true);
+    expect(next.authMethod).toBe("session");
   });
 
   it("login updates session state", async () => {
@@ -66,6 +112,8 @@ describe("useAuthStore actions", () => {
     expect(loginPassword).toHaveBeenCalledWith({ password: "secret-pass" });
     expect(next.authenticated).toBe(true);
     expect(next.error).toBeNull();
+    expect(next.authMethod).toBe("session");
+    expect(setAuthTokenMock).toHaveBeenCalledWith(null);
   });
 
   it("logout clears auth and refreshes session", async () => {
@@ -89,6 +137,8 @@ describe("useAuthStore actions", () => {
     expect(getAuthSession).toHaveBeenCalledTimes(1);
     expect(next.authenticated).toBe(false);
     expect(next.loading).toBe(false);
+    expect(next.authMethod).toBeNull();
+    expect(setAuthTokenMock).toHaveBeenCalledWith(null);
   });
 
   it("verifyTotp updates state transitions", async () => {
@@ -105,5 +155,61 @@ describe("useAuthStore actions", () => {
     expect(next.authenticated).toBe(true);
     expect(next.totpRequiredOnLogin).toBe(false);
     expect(next.loading).toBe(false);
+    expect(next.authMethod).toBe("session");
+  });
+
+  it("refreshSession promotes stored admin token to authenticated state", async () => {
+    window.localStorage.setItem("codex_lb_admin_api_token", "adm-token");
+    vi.mocked(getAuthSession).mockResolvedValue({
+      authenticated: false,
+      passwordRequired: true,
+      totpRequiredOnLogin: true,
+      totpConfigured: true,
+    });
+    vi.mocked(validateAdminToken).mockResolvedValue({});
+
+    await useAuthStore.getState().refreshSession();
+
+    const next = useAuthStore.getState();
+    expect(validateAdminToken).toHaveBeenCalledTimes(1);
+    expect(setAuthTokenMock).toHaveBeenCalledWith("adm-token");
+    expect(next.authenticated).toBe(true);
+    expect(next.totpRequiredOnLogin).toBe(false);
+    expect(next.authMethod).toBe("admin_token");
+  });
+
+  it("loginWithAdminToken validates and persists token", async () => {
+    vi.mocked(validateAdminToken).mockResolvedValue({});
+    vi.mocked(getAuthSession).mockResolvedValue({
+      authenticated: false,
+      passwordRequired: true,
+      totpRequiredOnLogin: false,
+      totpConfigured: true,
+    });
+
+    await useAuthStore.getState().loginWithAdminToken("  adm-token  ");
+
+    const next = useAuthStore.getState();
+    expect(validateAdminToken).toHaveBeenCalledTimes(1);
+    expect(setAuthTokenMock).toHaveBeenCalledWith("adm-token");
+    expect(window.localStorage.getItem("codex_lb_admin_api_token")).toBe("adm-token");
+    expect(next.authenticated).toBe(true);
+    expect(next.authMethod).toBe("admin_token");
+  });
+
+  it("loginWithAdminToken clears token on validation failure", async () => {
+    vi.mocked(validateAdminToken).mockRejectedValue(new Error("Invalid admin API token"));
+
+    await expect(useAuthStore.getState().loginWithAdminToken("bad-token")).rejects.toThrow(
+      "Invalid admin API token",
+    );
+
+    const next = useAuthStore.getState();
+    expect(window.localStorage.getItem("codex_lb_admin_api_token")).toBeNull();
+    expect(next.authenticated).toBe(false);
+    expect(next.authMethod).toBeNull();
+    expect(next.error).toBe("Invalid admin API token");
+    expect(setAuthTokenMock).toHaveBeenCalledWith("bad-token");
+    expect(setAuthTokenMock).toHaveBeenCalledWith(null);
   });
 });

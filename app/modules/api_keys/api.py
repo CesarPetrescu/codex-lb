@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Body, Depends, Response
 
-from app.core.auth.dependencies import set_dashboard_error_format, validate_dashboard_session
+from app.core.auth.dependencies import set_dashboard_error_format, validate_dashboard_access
 from app.core.exceptions import DashboardBadRequestError, DashboardNotFoundError
 from app.dependencies import ApiKeysContext, get_api_keys_context
 from app.modules.api_keys.schemas import (
@@ -23,7 +23,7 @@ from app.modules.api_keys.service import (
 router = APIRouter(
     prefix="/api/api-keys",
     tags=["dashboard"],
-    dependencies=[Depends(validate_dashboard_session), Depends(set_dashboard_error_format)],
+    dependencies=[Depends(validate_dashboard_access), Depends(set_dashboard_error_format)],
 )
 
 

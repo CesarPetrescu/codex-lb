@@ -11,6 +11,10 @@ export const LoginRequestSchema = z.object({
   password: z.string().min(1),
 });
 
+export const AdminTokenLoginRequestSchema = z.object({
+  token: z.string().min(1),
+});
+
 export const PasswordSetupRequestSchema = z.object({
   password: z.string().min(8),
 });
@@ -45,6 +49,7 @@ export const StatusResponseSchema = z.object({
 
 export type AuthSession = z.infer<typeof AuthSessionSchema>;
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
+export type AdminTokenLoginRequest = z.infer<typeof AdminTokenLoginRequestSchema>;
 export type PasswordSetupRequest = z.infer<typeof PasswordSetupRequestSchema>;
 export type PasswordChangeRequest = z.infer<typeof PasswordChangeRequestSchema>;
 export type PasswordRemoveRequest = z.infer<typeof PasswordRemoveRequestSchema>;

@@ -21,6 +21,10 @@ const SettingsPage = lazy(async () => {
   const module = await import("@/features/settings/components/settings-page");
   return { default: module.SettingsPage };
 });
+const ApiGuidePage = lazy(async () => {
+  const module = await import("@/features/api-guide/components/api-guide-page");
+  return { default: module.ApiGuidePage };
+});
 
 function RouteLoadingFallback() {
   return (
@@ -33,6 +37,7 @@ function RouteLoadingFallback() {
 function AppLayout() {
   const logout = useAuthStore((state) => state.logout);
   const passwordRequired = useAuthStore((state) => state.passwordRequired);
+  const authMethod = useAuthStore((state) => state.authMethod);
 
   return (
     <div className="flex min-h-screen flex-col bg-background pb-10">
@@ -40,7 +45,7 @@ function AppLayout() {
         onLogout={() => {
           void logout();
         }}
-        showLogout={passwordRequired}
+        showLogout={passwordRequired || authMethod === "admin_token"}
       />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
         <Outlet />
@@ -79,6 +84,14 @@ export default function App() {
               element={
                 <Suspense fallback={<RouteLoadingFallback />}>
                   <SettingsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/api-guide"
+              element={
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <ApiGuidePage />
                 </Suspense>
               }
             />

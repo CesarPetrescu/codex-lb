@@ -1,4 +1,5 @@
 import { del, get, post } from "@/lib/api-client";
+import { z } from "zod";
 import {
   AuthSessionSchema,
   type LoginRequest,
@@ -12,9 +13,15 @@ import {
 } from "@/features/auth/schemas";
 
 const AUTH_BASE_PATH = "/api/dashboard-auth";
+const ADMIN_TOKEN_VALIDATE_PATH = "/api/settings";
+const AdminTokenValidationSchema = z.object({}).passthrough();
 
 export function getAuthSession() {
   return get(`${AUTH_BASE_PATH}/session`, AuthSessionSchema);
+}
+
+export function validateAdminToken() {
+  return get(ADMIN_TOKEN_VALIDATE_PATH, AdminTokenValidationSchema);
 }
 
 export function setupPassword(payload: PasswordSetupRequest) {

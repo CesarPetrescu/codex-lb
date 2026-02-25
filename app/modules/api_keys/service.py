@@ -736,6 +736,8 @@ def _limit_identity_from_row(limit: ApiKeyLimit) -> tuple[str, str, str | None]:
 
 
 def _next_reset(now: datetime, window: LimitWindow) -> datetime:
+    if window == LimitWindow.FIVE_HOURS:
+        return now + timedelta(hours=5)
     if window == LimitWindow.DAILY:
         return now + timedelta(days=1)
     if window == LimitWindow.WEEKLY:
@@ -754,6 +756,8 @@ def _advance_reset(reset_at: datetime, now: datetime, window: LimitWindow) -> da
 
 
 def _window_delta(window: LimitWindow) -> timedelta:
+    if window == LimitWindow.FIVE_HOURS:
+        return timedelta(hours=5)
     if window == LimitWindow.DAILY:
         return timedelta(days=1)
     if window == LimitWindow.WEEKLY:

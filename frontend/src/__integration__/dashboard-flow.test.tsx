@@ -42,7 +42,7 @@ describe("dashboard flow integration", () => {
     window.history.pushState({}, "", "/dashboard");
     renderWithProviders(<App />);
 
-    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Dashboard" }, { timeout: 10_000 })).toBeInTheDocument();
     expect(await screen.findByText("Request Logs")).toBeInTheDocument();
 
     await waitFor(() => {
