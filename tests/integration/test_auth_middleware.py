@@ -199,6 +199,24 @@ async def test_totp_only_mode_rejects_missing_totp_verification(async_client):
     assert blocked.json()["error"]["code"] == "totp_required"
 
 
+
+
+@pytest.mark.asyncio
+async def test_settings_patch_allows_partial_update(async_client):
+    before = await async_client.get("/api/settings")
+    assert before.status_code == 200
+
+    response = await async_client.patch(
+        "/api/settings",
+        json={"importWithoutOverwrite": True},
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["importWithoutOverwrite"] is True
+    assert payload["stickyThreadsEnabled"] == before.json()["stickyThreadsEnabled"]
+    assert payload["preferEarlierResetAccounts"] == before.json()["preferEarlierResetAccounts"]
+
 @pytest.mark.asyncio
 async def test_api_key_branch_disabled_then_enabled(async_client):
     disabled = await async_client.get("/v1/models")

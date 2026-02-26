@@ -11,10 +11,12 @@ import "./index.css";
 
 useThemeStore.getState().initializeTheme();
 
+const routerBasePath = import.meta.env.VITE_PUBLIC_BASE_PATH?.trim() || "/";
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter basename={routerBasePath}>
         <App />
       </BrowserRouter>
     </QueryClientProvider>

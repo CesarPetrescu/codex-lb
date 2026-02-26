@@ -26,6 +26,17 @@ Vite dev server runs on port `5173` by default and proxies API routes to FastAPI
 - `/backend-api/*`
 - `/health`
 
+
+## Base path deployment
+
+When serving the dashboard under a sub-path (for example `/keymgmnt/admin`), set:
+
+```bash
+VITE_PUBLIC_BASE_PATH=/keymgmnt/admin
+```
+
+This value configures both the Vite public base and React Router basename.
+
 ## Build
 
 ```bash

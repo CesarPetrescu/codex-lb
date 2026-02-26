@@ -23,8 +23,15 @@ class DashboardErrorDetail(TypedDict):
     message: str
 
 
-class DashboardErrorEnvelope(TypedDict):
+class DashboardFieldValidationError(TypedDict):
+    field: str
+    message: str
+    type: str
+
+
+class DashboardErrorEnvelope(TypedDict, total=False):
     error: DashboardErrorDetail
+    validation_errors: list[DashboardFieldValidationError]
 
 
 class ResponseFailedResponse(TypedDict):
@@ -45,8 +52,16 @@ def openai_error(code: str, message: str, error_type: str = "server_error") -> O
     return {"error": {"message": message, "type": error_type, "code": code}}
 
 
-def dashboard_error(code: str, message: str) -> DashboardErrorEnvelope:
-    return {"error": {"code": code, "message": message}}
+def dashboard_error(
+    code: str,
+    message: str,
+    *,
+    validation_errors: list[DashboardFieldValidationError] | None = None,
+) -> DashboardErrorEnvelope:
+    payload: DashboardErrorEnvelope = {"error": {"code": code, "message": message}}
+    if validation_errors:
+        payload["validation_errors"] = validation_errors
+    return payload
 
 
 def response_failed_event(

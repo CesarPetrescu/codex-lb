@@ -18,3 +18,11 @@ class DashboardSettingsUpdateRequest(DashboardModel):
     import_without_overwrite: bool | None = None
     totp_required_on_login: bool | None = None
     api_key_auth_enabled: bool | None = None
+
+
+class DashboardSettingsPatchRequest(DashboardModel):
+    sticky_threads_enabled: bool | None = None
+    prefer_earlier_reset_accounts: bool | None = None
+    import_without_overwrite: bool | None = None
+    totp_required_on_login: bool | None = None
+    api_key_auth_enabled: bool | None = None
