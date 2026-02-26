@@ -3,7 +3,8 @@ import { fileURLToPath } from "node:url";
 
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
-import { defineConfig, loadEnv } from "vitest/config";
+import { defineConfig } from "vitest/config";
+import { loadEnv } from "vite";
 
 const normalizeBasePath = (value: string | undefined): string => {
   const raw = value?.trim();
