@@ -6,8 +6,12 @@ from app.core.auth.dependencies import set_dashboard_error_format, validate_dash
 from app.core.config.settings_cache import get_settings_cache
 from app.core.exceptions import DashboardBadRequestError
 from app.dependencies import SettingsContext, get_settings_context
-from app.modules.settings.schemas import DashboardSettingsResponse, DashboardSettingsUpdateRequest
-from app.modules.settings.service import DashboardSettingsUpdateData
+from app.modules.settings.schemas import (
+    DashboardSettingsPatchRequest,
+    DashboardSettingsResponse,
+    DashboardSettingsUpdateRequest,
+)
+from app.modules.settings.service import DashboardSettingsData, DashboardSettingsUpdateData
 
 router = APIRouter(
     prefix="/api/settings",
@@ -36,25 +40,69 @@ async def update_settings(
     payload: DashboardSettingsUpdateRequest = Body(...),
     context: SettingsContext = Depends(get_settings_context),
 ) -> DashboardSettingsResponse:
+    updated = await _update_settings(
+        context=context,
+        sticky_threads_enabled=payload.sticky_threads_enabled,
+        prefer_earlier_reset_accounts=payload.prefer_earlier_reset_accounts,
+        import_without_overwrite=payload.import_without_overwrite,
+        totp_required_on_login=payload.totp_required_on_login,
+        api_key_auth_enabled=payload.api_key_auth_enabled,
+    )
+    return _to_response(updated)
+
+
+@router.patch("", response_model=DashboardSettingsResponse)
+async def patch_settings(
+    payload: DashboardSettingsPatchRequest = Body(...),
+    context: SettingsContext = Depends(get_settings_context),
+) -> DashboardSettingsResponse:
+    updated = await _update_settings(
+        context=context,
+        sticky_threads_enabled=payload.sticky_threads_enabled,
+        prefer_earlier_reset_accounts=payload.prefer_earlier_reset_accounts,
+        import_without_overwrite=payload.import_without_overwrite,
+        totp_required_on_login=payload.totp_required_on_login,
+        api_key_auth_enabled=payload.api_key_auth_enabled,
+    )
+    return _to_response(updated)
+
+
+async def _update_settings(
+    *,
+    context: SettingsContext,
+    sticky_threads_enabled: bool | None,
+    prefer_earlier_reset_accounts: bool | None,
+    import_without_overwrite: bool | None,
+    totp_required_on_login: bool | None,
+    api_key_auth_enabled: bool | None,
+) -> DashboardSettingsData:
     current = await context.service.get_settings()
     try:
         updated = await context.service.update_settings(
             DashboardSettingsUpdateData(
-                sticky_threads_enabled=payload.sticky_threads_enabled,
-                prefer_earlier_reset_accounts=payload.prefer_earlier_reset_accounts,
+                sticky_threads_enabled=(
+                    sticky_threads_enabled
+                    if sticky_threads_enabled is not None
+                    else current.sticky_threads_enabled
+                ),
+                prefer_earlier_reset_accounts=(
+                    prefer_earlier_reset_accounts
+                    if prefer_earlier_reset_accounts is not None
+                    else current.prefer_earlier_reset_accounts
+                ),
                 import_without_overwrite=(
-                    payload.import_without_overwrite
-                    if payload.import_without_overwrite is not None
+                    import_without_overwrite
+                    if import_without_overwrite is not None
                     else current.import_without_overwrite
                 ),
                 totp_required_on_login=(
-                    payload.totp_required_on_login
-                    if payload.totp_required_on_login is not None
+                    totp_required_on_login
+                    if totp_required_on_login is not None
                     else current.totp_required_on_login
                 ),
                 api_key_auth_enabled=(
-                    payload.api_key_auth_enabled
-                    if payload.api_key_auth_enabled is not None
+                    api_key_auth_enabled
+                    if api_key_auth_enabled is not None
                     else current.api_key_auth_enabled
                 ),
             )
@@ -63,6 +111,10 @@ async def update_settings(
         raise DashboardBadRequestError(str(exc), code="invalid_totp_config") from exc
 
     await get_settings_cache().invalidate()
+    return updated
+
+
+def _to_response(updated: DashboardSettingsData) -> DashboardSettingsResponse:
     return DashboardSettingsResponse(
         sticky_threads_enabled=updated.sticky_threads_enabled,
         prefer_earlier_reset_accounts=updated.prefer_earlier_reset_accounts,

@@ -23,6 +23,8 @@ async def test_api_validation_error_returns_dashboard_payload(async_client):
     payload = response.json()
     assert payload["error"]["code"] == "validation_error"
     assert payload["error"]["message"] == "Invalid request payload"
+    assert payload["validation_errors"]
+    assert payload["validation_errors"][0]["field"] == "query.hours"
 
 
 @pytest.mark.asyncio
@@ -39,6 +41,7 @@ async def test_spa_route_path_returns_index_html(async_client, tmp_path):
     index = _STATIC_DIR / "index.html"
     created = not index.exists()
     if created:
+        index.parent.mkdir(parents=True, exist_ok=True)
         index.write_text("<!doctype html><html></html>")
     try:
         response = await async_client.get("/dashboard/settings")

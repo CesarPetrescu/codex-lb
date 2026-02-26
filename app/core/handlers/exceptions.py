@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.core.errors import dashboard_error, openai_error
+from app.core.errors import DashboardFieldValidationError, dashboard_error, openai_error
 from app.core.exceptions import (
     AppError,
     DashboardAuthError,
@@ -49,7 +49,6 @@ def _error_format(request: Request) -> str | None:
     fmt = getattr(request.state, "error_format", None)
     if fmt is not None:
         return fmt
-    # Fallback for unmatched routes (e.g. SPA fallback 404s)
     path = request.url.path
     if path.startswith("/api/"):
         return "dashboard"
@@ -58,9 +57,22 @@ def _error_format(request: Request) -> str | None:
     return None
 
 
-def add_exception_handlers(app: FastAPI) -> None:
-    # --- Domain exceptions: OpenAI envelope ---
+def _extract_dashboard_validation_errors(exc: RequestValidationError) -> list[DashboardFieldValidationError]:
+    field_errors: list[DashboardFieldValidationError] = []
+    for entry in exc.errors():
+        loc = entry.get("loc", ())
+        field_parts = [str(part) for part in loc if part != "body"]
+        field_errors.append(
+            {
+                "field": ".".join(field_parts) if field_parts else "body",
+                "message": str(entry.get("msg", "Invalid value")),
+                "type": str(entry.get("type", "validation_error")),
+            }
+        )
+    return field_errors
 
+
+def add_exception_handlers(app: FastAPI) -> None:
     for exc_cls in _OPENAI_EXCEPTION_TYPES:
 
         @app.exception_handler(exc_cls)
@@ -70,8 +82,6 @@ def add_exception_handlers(app: FastAPI) -> None:
                 status_code=exc.status_code,
                 content=openai_error(exc.code, exc.message, error_type=error_type),
             )
-
-    # --- Domain exceptions: Dashboard envelope ---
 
     for exc_cls in _DASHBOARD_EXCEPTION_TYPES:
 
@@ -86,18 +96,21 @@ def add_exception_handlers(app: FastAPI) -> None:
                 headers=headers,
             )
 
-    # --- Framework exceptions: format based on router marker ---
-
     @app.exception_handler(RequestValidationError)
     async def validation_error_handler(
         request: Request,
         exc: RequestValidationError,
     ) -> Response:
         fmt = _error_format(request)
+        field_errors = _extract_dashboard_validation_errors(exc)
         if fmt == "dashboard":
             return JSONResponse(
                 status_code=422,
-                content=dashboard_error("validation_error", "Invalid request payload"),
+                content=dashboard_error(
+                    "validation_error",
+                    "Invalid request payload",
+                    validation_errors=field_errors,
+                ),
             )
         if fmt == "openai":
             error = openai_error("invalid_request_error", "Invalid request payload", error_type="invalid_request_error")
@@ -133,7 +146,6 @@ def add_exception_handlers(app: FastAPI) -> None:
                 error_type = "permission_error"
                 code = "insufficient_permissions"
             elif exc.status_code == 404:
-                error_type = "invalid_request_error"
                 code = "not_found"
             elif exc.status_code == 429:
                 error_type = "rate_limit_error"
@@ -143,8 +155,6 @@ def add_exception_handlers(app: FastAPI) -> None:
                 code = "server_error"
             return JSONResponse(status_code=exc.status_code, content=openai_error(code, detail, error_type=error_type))
         return await http_exception_handler(request, exc)
-
-    # --- Catch-all for unhandled exceptions ---
 
     @app.exception_handler(Exception)
     async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
