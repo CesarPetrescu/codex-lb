@@ -37,6 +37,13 @@ VITE_PUBLIC_BASE_PATH=/keymgmnt/admin
 
 This value configures both the Vite public base and React Router basename.
 
+API routes are also prefixed automatically. For `/keymgmnt/admin`, frontend API calls become `/keymgmnt/api/*`.
+If your API prefix differs, override it explicitly:
+
+```bash
+VITE_API_BASE_PATH=/keymgmnt
+```
+
 ## Build
 
 ```bash

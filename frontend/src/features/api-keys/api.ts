@@ -1,4 +1,5 @@
 import { del, get, patch, post } from "@/lib/api-client";
+import { apiPath } from "@/lib/public-path";
 
 import {
   ApiKeyCreateRequestSchema,
@@ -9,8 +10,8 @@ import {
   ModelsResponseSchema,
 } from "@/features/api-keys/schemas";
 
-const API_KEYS_BASE_PATH = "/api/api-keys";
-const MODELS_PATH = "/api/models";
+const API_KEYS_BASE_PATH = apiPath("/api/api-keys");
+const MODELS_PATH = apiPath("/api/models");
 
 export function listApiKeys() {
   return get(`${API_KEYS_BASE_PATH}/`, ApiKeyListSchema);

@@ -1,4 +1,5 @@
 import { del, get, post } from "@/lib/api-client";
+import { apiPath } from "@/lib/public-path";
 
 import {
   AccountActionResponseSchema,
@@ -12,8 +13,8 @@ import {
   OauthStatusResponseSchema,
 } from "@/features/accounts/schemas";
 
-const ACCOUNTS_BASE_PATH = "/api/accounts";
-const OAUTH_BASE_PATH = "/api/oauth";
+const ACCOUNTS_BASE_PATH = apiPath("/api/accounts");
+const OAUTH_BASE_PATH = apiPath("/api/oauth");
 
 export function listAccounts() {
   return get(ACCOUNTS_BASE_PATH, AccountsResponseSchema);

@@ -1,4 +1,5 @@
 import { get } from "@/lib/api-client";
+import { apiPath } from "@/lib/public-path";
 
 import {
   DashboardOverviewSchema,
@@ -6,8 +7,8 @@ import {
   RequestLogsResponseSchema,
 } from "@/features/dashboard/schemas";
 
-const DASHBOARD_PATH = "/api/dashboard";
-const REQUEST_LOGS_PATH = "/api/request-logs";
+const DASHBOARD_PATH = apiPath("/api/dashboard");
+const REQUEST_LOGS_PATH = apiPath("/api/request-logs");
 
 export type RequestLogsListFilters = {
   limit?: number;

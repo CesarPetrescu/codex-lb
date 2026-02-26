@@ -1,4 +1,5 @@
 import { del, get, post } from "@/lib/api-client";
+import { apiPath } from "@/lib/public-path";
 import { z } from "zod";
 import {
   AuthSessionSchema,
@@ -12,8 +13,8 @@ import {
   TotpVerifyRequestSchema,
 } from "@/features/auth/schemas";
 
-const AUTH_BASE_PATH = "/api/dashboard-auth";
-const ADMIN_TOKEN_VALIDATE_PATH = "/api/settings";
+const AUTH_BASE_PATH = apiPath("/api/dashboard-auth");
+const ADMIN_TOKEN_VALIDATE_PATH = apiPath("/api/settings");
 const AdminTokenValidationSchema = z.object({}).passthrough();
 
 export function getAuthSession() {
