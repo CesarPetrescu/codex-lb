@@ -234,6 +234,198 @@ Authorization: Bearer sk-clb-...
 
 **Creating keys**: Dashboard → API Keys → Create. The full key is shown **only once** at creation. Keys support optional expiration, model restrictions, and rate limits (tokens / cost per day / week / month).
 
+## Admin API (All Dashboard Routes)
+
+All dashboard management routes live under `/api/*`.
+
+Auth modes for `/api/*`:
+
+- Dashboard session cookie (password/TOTP login via web UI)
+- `Authorization: Bearer <CODEX_LB_ADMIN_API_TOKEN>`
+
+If `CODEX_LB_ADMIN_API_TOKEN` is configured, anonymous direct access to `/api/*` is blocked.
+
+### Quick start
+
+```bash
+# server .env
+CODEX_LB_ADMIN_API_TOKEN="<strong-random-admin-token>"
+
+# restart codex-lb after .env update
+```
+
+```bash
+export BASE_URL="http://127.0.0.1:2455"
+export ADMIN_TOKEN="<your CODEX_LB_ADMIN_API_TOKEN>"
+export KEY_ID=""
+export CLIENT_KEY=""
+```
+
+```bash
+# auth check
+curl -sS "$BASE_URL/api/settings" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | jq
+```
+
+### Endpoint map
+
+- Accounts: `GET /api/accounts`, `POST /api/accounts/import`, `POST /api/accounts/{id}/pause`, `POST /api/accounts/{id}/reactivate`, `DELETE /api/accounts/{id}`
+- Usage: `GET /api/usage/summary`, `GET /api/usage/history`, `GET /api/usage/window`
+- Settings: `GET /api/settings`, `PUT /api/settings`
+- API Keys: `GET/POST /api/api-keys/`, `PATCH/DELETE /api/api-keys/{id}`, `POST /api/api-keys/{id}/regenerate`
+- Dashboard data: `GET /api/dashboard/overview`, `GET /api/models`, `GET /api/request-logs`, `GET /api/request-logs/options`
+- OAuth helper: `POST /api/oauth/start`, `GET /api/oauth/status`, `POST /api/oauth/complete`
+
+### Full API key lifecycle (copy/paste)
+
+```bash
+# 1) import one auth.json account
+curl -sS -X POST "$BASE_URL/api/accounts/import" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -F "auth_json=@./auth.json;type=application/json" | jq
+```
+
+```bash
+# 2) read primary/secondary remaining
+curl -sS "$BASE_URL/api/usage/summary" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | jq '{
+    primaryRemainingPercent: .primaryWindow.remainingPercent,
+    secondaryRemainingPercent: (if .secondaryWindow then .secondaryWindow.remainingPercent else null end),
+    primaryResetAt: .primaryWindow.resetAt,
+    secondaryResetAt: (if .secondaryWindow then .secondaryWindow.resetAt else null end)
+  }'
+```
+
+```bash
+# 3) enable API-key enforcement for /v1/*
+CURRENT_SETTINGS=$(curl -sS "$BASE_URL/api/settings" \
+  -H "Authorization: Bearer $ADMIN_TOKEN")
+
+echo "$CURRENT_SETTINGS" | jq '.apiKeyAuthEnabled = true' | \
+curl -sS -X PUT "$BASE_URL/api/settings" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @- | jq
+```
+
+```bash
+# 4) create key with allowed models + limits (weekly / 5h / monthly)
+CREATE_OUTPUT=$(curl -sS -X POST "$BASE_URL/api/api-keys/" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "ops-key",
+    "allowedModels": ["gpt-5.2"],
+    "limits": [
+      { "limitType": "total_tokens", "limitWindow": "weekly", "maxValue": 2500000 },
+      { "limitType": "total_tokens", "limitWindow": "5h", "maxValue": 500000 },
+      { "limitType": "cost_usd", "limitWindow": "monthly", "maxValue": 10000000 }
+    ]
+  }')
+
+echo "$CREATE_OUTPUT" | jq
+export KEY_ID=$(echo "$CREATE_OUTPUT" | jq -r '.id')
+export CLIENT_KEY=$(echo "$CREATE_OUTPUT" | jq -r '.key')
+```
+
+```bash
+# 5) list all keys
+curl -sS "$BASE_URL/api/api-keys/" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | jq '[.[] | {
+    id, name, keyPrefix, isActive, allowedModels, expiresAt
+  }]'
+```
+
+```bash
+# 6) inspect per-key usage + price counters
+curl -sS "$BASE_URL/api/api-keys/" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | jq --arg key "$KEY_ID" '
+    .[] | select(.id == $key) | {
+      id,
+      name,
+      limits: (.limits | map(
+        if .limitType == "cost_usd" then
+          {
+            type: .limitType,
+            window: .limitWindow,
+            model: (.modelFilter // "all"),
+            currentUsd: (.currentValue / 1000000),
+            maxUsd: (.maxValue / 1000000)
+          }
+        else
+          {
+            type: .limitType,
+            window: .limitWindow,
+            model: (.modelFilter // "all"),
+            current: .currentValue,
+            max: .maxValue
+          }
+        end
+      ))
+    }'
+```
+
+```bash
+# 7) edit key metadata
+curl -sS -X PATCH "$BASE_URL/api/api-keys/$KEY_ID" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "ops-key-renamed",
+    "allowedModels": ["gpt-5.2"],
+    "isActive": true
+  }' | jq
+```
+
+```bash
+# 8) modify usage policy in detail
+curl -sS -X PATCH "$BASE_URL/api/api-keys/$KEY_ID" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "limits": [
+      { "limitType": "total_tokens", "limitWindow": "5h", "maxValue": 300000 },
+      { "limitType": "total_tokens", "limitWindow": "weekly", "maxValue": 2000000 },
+      { "limitType": "cost_usd", "limitWindow": "monthly", "maxValue": 12000000 }
+    ]
+  }' | jq
+```
+
+```bash
+# 9) reset usage counters
+curl -sS -X PATCH "$BASE_URL/api/api-keys/$KEY_ID" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "resetUsage": true }' | jq
+```
+
+```bash
+# 10) regenerate key (old secret invalid, new secret returned once)
+REGEN_OUTPUT=$(curl -sS -X POST "$BASE_URL/api/api-keys/$KEY_ID/regenerate" \
+  -H "Authorization: Bearer $ADMIN_TOKEN")
+
+echo "$REGEN_OUTPUT" | jq
+export CLIENT_KEY=$(echo "$REGEN_OUTPUT" | jq -r '.key')
+```
+
+```bash
+# 11) verify new client key against /v1/*
+curl -sS "$BASE_URL/v1/models" \
+  -H "Authorization: Bearer $CLIENT_KEY" | jq
+```
+
+```bash
+# 12) delete key
+curl -sS -X DELETE "$BASE_URL/api/api-keys/$KEY_ID" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -i
+```
+
+Notes:
+
+- `cost_usd` is micro-dollars (`1 USD = 1,000,000`)
+- Plain client API key is returned only on create/regenerate
+- For a separate runbook file, see [`api.md`](./api.md)
+
 ## Configuration
 
 Environment variables with `CODEX_LB_` prefix or `.env.local`. See [`.env.example`](.env.example).
