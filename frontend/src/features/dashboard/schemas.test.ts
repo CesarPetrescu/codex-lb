@@ -103,6 +103,35 @@ describe("RequestLogsResponseSchema", () => {
     expect(parsed.hasMore).toBe(false);
   });
 
+  it("accepts request rows without an assigned account", () => {
+    const parsed = RequestLogsResponseSchema.parse({
+      requests: [
+        {
+          requestedAt: ISO,
+          accountId: null,
+          requestId: "req-no-account",
+          model: "gpt-5.4",
+          status: "error",
+          errorCode: "no_accounts",
+          errorMessage: "All accounts require re-authentication",
+          tokens: null,
+          cachedInputTokens: null,
+          reasoningEffort: null,
+          costUsd: null,
+          latencyMs: 42,
+          apiKeyName: "Admin key",
+          transport: "responses",
+          serviceTier: "default",
+        },
+      ],
+      total: 1,
+      hasMore: false,
+    });
+
+    expect(parsed.requests[0]?.accountId).toBeNull();
+    expect(parsed.requests[0]?.apiKeyName).toBe("Admin key");
+  });
+
   it("rejects missing pagination metadata", () => {
     const result = RequestLogsResponseSchema.safeParse({
       requests: [],

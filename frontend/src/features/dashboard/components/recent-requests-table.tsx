@@ -97,7 +97,9 @@ export function RecentRequestsTable({
           <TableBody>
             {requests.map((request) => {
               const time = formatTimeLong(request.requestedAt);
-              const accountLabel = accountLabelMap.get(request.accountId) ?? request.accountId;
+              const accountLabel = request.accountId
+                ? accountLabelMap.get(request.accountId) ?? request.accountId
+                : request.apiKeyName ?? "Unassigned";
               const errorMessage = request.errorMessage || request.errorCode || "-";
               const hasLongError = errorMessage !== "-" && errorMessage.length > 72;
 

@@ -67,4 +67,34 @@ describe("RecentRequestsTable", () => {
     render(<RecentRequestsTable {...PAGINATION_PROPS} total={0} accounts={[]} requests={[]} />);
     expect(screen.getByText("No request logs match the current filters.")).toBeInTheDocument();
   });
+
+  it("renders api key fallback when a request has no account id", () => {
+    render(
+      <RecentRequestsTable
+        {...PAGINATION_PROPS}
+        accounts={[]}
+        requests={[
+          {
+            requestedAt: ISO,
+            accountId: null,
+            requestId: "req-unassigned",
+            model: "gpt-5.4",
+            status: "error",
+            errorCode: "no_accounts",
+            errorMessage: "All accounts require re-authentication",
+            tokens: null,
+            cachedInputTokens: null,
+            reasoningEffort: null,
+            costUsd: null,
+            latencyMs: 100,
+            apiKeyName: "Admin key",
+            transport: "responses",
+            serviceTier: "default",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Admin key")).toBeInTheDocument();
+  });
 });

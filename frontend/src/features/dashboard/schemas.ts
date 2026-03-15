@@ -70,7 +70,7 @@ export const DashboardOverviewSchema = z.object({
 
 export const RequestLogSchema = z.object({
   requestedAt: z.string().datetime({ offset: true }),
-  accountId: z.string(),
+  accountId: z.string().nullable(),
   requestId: z.string(),
   model: z.string(),
   status: z.string(),
@@ -81,6 +81,9 @@ export const RequestLogSchema = z.object({
   reasoningEffort: z.string().nullable(),
   costUsd: z.number().nullable(),
   latencyMs: z.number().nullable(),
+  apiKeyName: z.string().nullable().optional(),
+  transport: z.string().nullable().optional(),
+  serviceTier: z.string().nullable().optional(),
 });
 
 export const RequestLogsResponseSchema = z.object({
